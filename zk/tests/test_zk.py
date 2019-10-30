@@ -5,6 +5,7 @@
 import os
 from distutils.version import LooseVersion  # pylint: disable=E0611,E0401
 
+import mock
 import pytest
 
 from datadog_checks.zk import ZookeeperCheck
@@ -66,3 +67,15 @@ def test_error_state(aggregator, dd_environment, get_conn_failure_config):
     expected_mode = get_conn_failure_config['expected_mode']
     mname = "zookeeper.instances.{}".format(expected_mode)
     aggregator.assert_metric(mname, value=1, count=1)
+
+
+@pytest.mark.usefixtures('dd_environment')
+def test_metadata(check, get_instance, aggregator, version_metadata):
+    check.check_id = 'test:123'
+
+    with mock.patch('datadog_checks.base.stubs.datadog_agent.set_check_metadata') as m:
+        check.check(get_instance)
+        for name, value in version_metadata.items():
+            m.assert_any_call('test:123', name, value)
+
+        assert m.call_count == len(version_metadata)
